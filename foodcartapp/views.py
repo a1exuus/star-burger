@@ -1,6 +1,9 @@
 from django.http import JsonResponse
 from django.templatetags.static import static
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
 import json
 
 
@@ -60,39 +63,29 @@ def product_list_api(request):
         'indent': 4,
     })
 
-
-@csrf_exempt
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
 def register_order(request):
+    data = request.data
+
     try:
-        raw_body = request.body.decode('utf-8')
-        print(f"REPR BODY: {repr(raw_body)}")
-        data = json.loads(raw_body, strict=False)
-        print(f'REPR DATA: {repr(data)}')
-    except json.JSONDecodeError as e:
-        return JsonResponse(
-            {'error': 'invalid_json', 'details': str(e)},
-            status=400
+        order = Order.objects.create(
+            phone_number=data.get('phonenumber'),
+            first_name=data.get('firstname'),
+            last_name=data.get('lastname'),
+            address=data.get('address'),
         )
 
-    if request.method == 'POST':
-        try:
-            order = Order.objects.create(
-                phone_number=data.get('phonenumber'),
-                first_name=data.get('firstname'),
-                last_name=data.get('lastname'),
-                address=data.get('address'),
+        for item in data.get('products', []):
+            OrderItem.objects.create(
+                order=order,
+                product_id=item['product'],
+                quantity=item['quantity']
             )
+        
+        return Response({'status': 'success'}, status=201)
+        
+    except Exception as e:
+        return Response({'error': str(e)}, status=400)
 
-            for item in data.get('products', []):
-                OrderItem.objects.create(
-                    order=order,
-                    product_id=item['product'],
-                    quantity=item['quantity']
-                )
-            
-            return JsonResponse({'status': 'success'}, status=201)
-            
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
-            
-    return JsonResponse({'error': 'Invalid method'}, status=405)
