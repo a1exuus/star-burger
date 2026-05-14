@@ -77,12 +77,15 @@ def register_order(request):
             address=data.get('address'),
         )
 
-        for item in data.get('products', []):
-            OrderItem.objects.create(
-                order=order,
-                product_id=item['product'],
-                quantity=item['quantity']
-            )
+        if data.get('products', []):
+            for item in data.get('products'):
+                OrderItem.objects.create(
+                    order=order,
+                    product_id=item['product'],
+                    quantity=item['quantity']
+                )
+        else:
+            return Response({'status': 'products list cannot be empty or unexisted'})
         
         return Response({'status': 'success'}, status=201)
         
