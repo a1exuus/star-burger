@@ -4,6 +4,7 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from phonenumber_field.phonenumber import PhoneNumber
 import json
 
 
@@ -70,13 +71,12 @@ def register_order(request):
     data = request.data
 
     try:
-        order = Order.objects.create(
-            phone_number=data.get('phonenumber'),
-            first_name=data.get('firstname'),
-            last_name=data.get('lastname'),
-            address=data.get('address'),
-        )
+        first_name = data.get('firstname')
+        number = PhoneNumber.from_string(data.get('phonenumber'))
 
+        if not isinstance(first_name, str):
+            return Response({'error': 'first_name field shouldnt be list or tuple. check that it was entered correctly'}, status=400)
+        
         if data.get('products', []):
             for item in data.get('products'):
                 OrderItem.objects.create(
@@ -86,6 +86,16 @@ def register_order(request):
                 )
         else:
             return Response({'status': 'products list cannot be empty or unexisted'})
+        
+        if number and number.is_valid():
+            order = Order.objects.create(
+                phone_number=number,
+                first_name=first_name,
+                last_name=data.get('lastname'),
+                address=data.get('address'),
+            )
+        else: 
+            return Response({'status': 'The phone number was not validated. Please check that it was entered correctly.'})
         
         return Response({'status': 'success'}, status=201)
         
