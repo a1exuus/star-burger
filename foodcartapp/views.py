@@ -1,10 +1,13 @@
 from django.http import JsonResponse
 from django.templatetags.static import static
 from django.views.decorators.csrf import csrf_exempt
+from django.db import transaction
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.serializers import ModelSerializer, IntegerField, Serializer, ValidationError
+from rest_framework.permissions import AllowAny
 from phonenumber_field.phonenumber import PhoneNumber
+from phonenumber_field.serializerfields import PhoneNumberField
 import json
 
 
@@ -64,41 +67,58 @@ def product_list_api(request):
         'indent': 4,
     })
 
+
+class OrderItemSerializer(Serializer):
+    product = IntegerField(min_value=1)
+    quantity = IntegerField(min_value=1)
+
+
+class OrderSerializer(ModelSerializer):
+    products = OrderItemSerializer(many=True, write_only=True, allow_empty=False)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'firstname', 'lastname', 'phonenumber', 'address', 'products']
+
+    def validate_products(self, value):
+        if not value:
+            raise ValidationError("Список товаров не может быть пустым")
+        
+        product_ids = {item['product'] for item in value}
+        existing_ids = set(Product.objects.filter(id__in=product_ids).values_list('id', flat=True))
+        missing = product_ids - existing_ids
+        if missing:
+            raise ValidationError(
+                f"Продукты с ID {', '.join(map(str, missing))} не существуют"
+            )
+        return value
+
+    def create(self, validated_data):
+        products_data = validated_data.pop('products')
+        order = Order.objects.create(**validated_data)
+        
+        product_ids = [item['product'] for item in products_data]
+        products = {p.id: p for p in Product.objects.filter(id__in=product_ids)}
+        
+        order_items = []
+        for item in products_data:
+            product = products[item['product']]
+            order_items.append(OrderItem(
+                order=order,
+                product=product,
+                quantity=item['quantity'],
+                price=product.price
+            ))
+        OrderItem.objects.bulk_create(order_items)
+        return order
+
+
 @api_view(['POST'])
 @authentication_classes([])
 @permission_classes([AllowAny])
+@transaction.atomic
 def register_order(request):
-    data = request.data
-
-    try:
-        first_name = data.get('firstname')
-        number = PhoneNumber.from_string(data.get('phonenumber'))
-
-        if not isinstance(first_name, str):
-            return Response({'error': 'first_name field shouldnt be list or tuple. check that it was entered correctly'}, status=400)
-        
-        if data.get('products', []):
-            for item in data.get('products'):
-                OrderItem.objects.create(
-                    order=order,
-                    product_id=item['product'],
-                    quantity=item['quantity']
-                )
-        else:
-            return Response({'status': 'products list cannot be empty or unexisted'})
-        
-        if number and number.is_valid():
-            order = Order.objects.create(
-                phone_number=number,
-                first_name=first_name,
-                last_name=data.get('lastname'),
-                address=data.get('address'),
-            )
-        else: 
-            return Response({'status': 'The phone number was not validated. Please check that it was entered correctly.'})
-        
-        return Response({'status': 'success'}, status=201)
-        
-    except Exception as e:
-        return Response({'error': str(e)}, status=400)
-
+    serializer = OrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    order = serializer.save()
+    return Response(OrderSerializer(order).data)
