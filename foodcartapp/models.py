@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models import Sum, F
+from django.db.models.functions import Coalesce
 from django.core.validators import MinValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
 
@@ -124,11 +126,28 @@ class RestaurantMenuItem(models.Model):
         return f"{self.restaurant.name} - {self.product.name}"
 
 
+class OrderQuerySet(models.QuerySet):
+    def with_total_cost(self):
+        return self.annotate(
+            total_cost=Coalesce(
+                Sum(
+                    Coalesce(F('order_items__price'), F('order_items__product__price')) 
+                    * F('order_items__quantity')
+                ),
+                models.Value(0),
+                output_field=models.DecimalField()
+            )
+        )
+
+
+
 class Order(models.Model):
     firstname = models.CharField(max_length=20, verbose_name='Имя')
     lastname = models.CharField(max_length=30, verbose_name='Фамилия')
     phonenumber = PhoneNumberField(region="RU", verbose_name='Номер телефона', max_length=18)  # type: ignore
     address = models.CharField(max_length=70, verbose_name='Адрес')
+
+    objects = OrderQuerySet.as_manager()
 
     class Meta:
         verbose_name = 'заказ'
@@ -147,6 +166,14 @@ class OrderItem(models.Model):
                                 related_name='order_items',
                                 verbose_name='Продукт',
                                 on_delete=models.CASCADE)
+    price = models.DecimalField(
+        'Цена',
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        blank=True,
+        null=True
+    )
     quantity = models.PositiveIntegerField(
         db_index=True,
         verbose_name='Количество'

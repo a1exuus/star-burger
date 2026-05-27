@@ -106,7 +106,8 @@ class OrderSerializer(ModelSerializer):
             order_items.append(OrderItem(
                 order=order,
                 product=product,
-                quantity=item['quantity']
+                quantity=item['quantity'],
+                price=product.price
             ))
         OrderItem.objects.bulk_create(order_items)
         return order
