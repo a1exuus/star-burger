@@ -154,6 +154,7 @@ class Order(models.Model):
     phonenumber = PhoneNumberField(region="RU", verbose_name='Номер телефона', max_length=18)  # type: ignore
     address = models.CharField(max_length=70, verbose_name='Адрес')
     status = models.CharField(max_length=4, choices=ORDER_STATUES, db_index=True, default='NPRC', verbose_name='Статус')
+    comment = models.TextField(max_length=300, verbose_name='Комментарий к заказу', blank=True)
 
     objects = OrderQuerySet.as_manager()
 
