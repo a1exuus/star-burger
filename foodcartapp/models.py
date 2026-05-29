@@ -142,10 +142,18 @@ class OrderQuerySet(models.QuerySet):
 
 
 class Order(models.Model):
+    ORDER_STATUES = (
+        ('NPRC', 'Не обработан'),
+        ('ACTD', 'Принят'),
+        ('PRCD', 'Готовится'),
+        ('DLVR', 'Доставляется'),
+        ('DLRD', 'Выполнен')
+    )
     firstname = models.CharField(max_length=20, verbose_name='Имя')
     lastname = models.CharField(max_length=30, verbose_name='Фамилия')
     phonenumber = PhoneNumberField(region="RU", verbose_name='Номер телефона', max_length=18)  # type: ignore
     address = models.CharField(max_length=70, verbose_name='Адрес')
+    status = models.CharField(max_length=4, choices=ORDER_STATUES, db_index=True, default='NPRC', verbose_name='Статус')
 
     objects = OrderQuerySet.as_manager()
 
