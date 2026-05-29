@@ -150,12 +150,45 @@ class Order(models.Model):
         ('DLVR', 'Доставляется'),
         ('DLRD', 'Выполнен')
     )
-    firstname = models.CharField(max_length=20, verbose_name='Имя')
-    lastname = models.CharField(max_length=30, verbose_name='Фамилия')
-    phonenumber = PhoneNumberField(region="RU", verbose_name='Номер телефона', max_length=18)  # type: ignore
-    address = models.CharField(max_length=70, verbose_name='Адрес')
-    status = models.CharField(max_length=4, choices=ORDER_STATUES, db_index=True, default='NPRC', verbose_name='Статус')
-    comment = models.TextField(max_length=300, verbose_name='Комментарий к заказу', blank=True)
+    PAYMENT_WAY_CHOICES = (
+        ('CASH', 'Наличными'),
+        ('ELCT', 'Электронно'),
+    )
+    firstname = models.CharField(
+        max_length=20,
+        verbose_name='Имя'
+        )
+    lastname = models.CharField(
+        max_length=30,
+        verbose_name='Фамилия'
+        )
+    phonenumber = PhoneNumberField(
+        region="RU",
+        verbose_name='Номер телефона',
+        max_length=18
+        )  # type: ignore
+    address = models.CharField(
+        max_length=70,
+        verbose_name='Адрес'
+        )
+    status = models.CharField(
+        max_length=4,
+        choices=ORDER_STATUES,
+        db_index=True, default='NPRC',
+        verbose_name='Статус'
+        )
+    payment_way = models.CharField(
+        max_length=5,
+        choices=PAYMENT_WAY_CHOICES,
+        db_index=True,
+        verbose_name='Способ оплаты',
+        blank=True
+        )
+    comment = models.TextField(
+        max_length=300,
+        verbose_name='Комментарий к заказу',
+        blank=True
+        )
 
     registrated_at = models.DateTimeField(
         db_index=True,
