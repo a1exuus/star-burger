@@ -92,7 +92,33 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    orders = Order.objects.all().with_total_cost()
+    restaurants = list(Restaurant.objects.order_by('name'))
+    orders = (Order.objects.exclude(status='DLRD')
+              .select_related('restaurant')
+              .prefetch_related('order_items__product__menu_items')
+              .with_total_cost()
+              .returns_ready_restaurants())
+
+    orders_with_availability = []
+    for order in orders:
+        items_with_availability = []
+        common_restaurants = set(restaurants)
+        
+        for item in order.order_items.all():
+            availability = {
+                mi.restaurant_id: mi.availability
+                for mi in item.product.menu_items.all()
+            }
+            available_restaurants = [
+                restaurant for restaurant in restaurants
+                if availability.get(restaurant.id, False)
+            ]
+            items_with_availability.append((item, available_restaurants))
+            
+            common_restaurants &= set(available_restaurants)
+        
+        orders_with_availability.append((order, items_with_availability, list(common_restaurants)))
+
     return render(request, template_name='order_items.html', context={
-        'order_items': orders
+        'order_items': orders_with_availability,
     })

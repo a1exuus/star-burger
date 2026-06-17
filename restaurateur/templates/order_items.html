@@ -21,22 +21,35 @@
       <th>Адрес доставки</th>
       <th>Сумма заказа</th>
       <th>Комментарий</th>
+      <th>Рестораны</th>
       <th>Редактирование заказа</th>
     </tr>
 
-    {% for item in order_items %}
+    {% for order, items_with_availability, common_restaurants in order_items %}
       <tr>
-        <td>{{ item.id }}</td>
-        <td>{{ item.get_status_display }}</td>
-        <td>{{ item.get_payment_way_display }}</td>
-        <td>{{ item.firstname }} {{ item.lastname }}</td>
-        <td>{{ item.phonenumber }}</td>
-        <td>{{ item.address }}</td>
-        <td>{{ item.total_cost }} ₽</td>
-        <td>{{ item.comment }}</td>
-        <td><a href="{% url 'admin:foodcartapp_order_change' object_id=item.id %}?next={{ request.path|urlencode }}">Редактировать</a></td>
+          <td>{{ order.id }}</td>
+          <td>{{ order.get_status_display }}</td>
+          <td>{{ order.get_payment_way_display }}</td>
+          <td>{{ order.firstname }} {{ order.lastname }}</td>
+          <td>{{ order.phonenumber }}</td>
+          <td>{{ order.address }}</td>
+          <td>{{ order.total_cost }} ₽</td>
+          <td>{{ order.comment }}</td>
+          <td>
+              <p>Может быть приготовлен ресторанами:</p>
+              <ul>
+                  {% for restaurant in common_restaurants %}
+                      <li>{{ restaurant.name }}</li>
+                  {% empty %}
+                      <li>Нет ресторанов, которые могут приготовить весь заказ</li>
+                  {% endfor %}
+              </ul>
+          </td>
+          <td><a href="{% url 'admin:foodcartapp_order_change' object_id=order.id %}?next={{ request.path|urlencode }}">Редактировать</a></td>
       </tr>
     {% endfor %}
+
+
    </table>
   </div>
 {% endblock %}

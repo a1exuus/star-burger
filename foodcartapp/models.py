@@ -4,6 +4,7 @@ from django.db.models.functions import Coalesce
 from django.core.validators import MinValueValidator
 from phonenumber_field.modelfields import PhoneNumberField
 from django.utils import timezone
+from collections import defaultdict
 
 
 class Restaurant(models.Model):
@@ -139,6 +140,23 @@ class OrderQuerySet(models.QuerySet):
                 output_field=models.DecimalField()
             )
         )
+    
+
+    def returns_ready_restaurants(self):
+        menu_items = RestaurantMenuItem.objects.all().select_related('restaurant',
+                                                                     'product')
+        restaurants_with_products = defaultdict(list)
+        for item in menu_items:
+            restaurants_with_products[item.restaurant].append(item.product)
+        for order in self:
+            order_products = [product.product for product in order.\
+                              order_items.select_related('product')]
+            ready_restaurants = []
+            for restaurant, r_products in restaurants_with_products.items():
+                if all(elem in r_products for elem in order_products):
+                    ready_restaurants.append(restaurant.name)
+            order.ready_restaurants = ready_restaurants
+        return self
 
 
 
@@ -189,7 +207,14 @@ class Order(models.Model):
         verbose_name='Комментарий к заказу',
         blank=True
         )
-
+    restaurant = models.ForeignKey(
+        Restaurant,
+        related_name='orders',
+        verbose_name='Ресторан',
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE
+    )
     registrated_at = models.DateTimeField(
         db_index=True,
         default=timezone.now,
