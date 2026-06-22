@@ -25,7 +25,7 @@
       <th>Редактирование заказа</th>
     </tr>
 
-    {% for order, items_with_availability, common_restaurants in order_items %}
+    {% for order, common_restaurants_with_distance in order_items %}
       <tr>
           <td>{{ order.id }}</td>
           <td>{{ order.get_status_display }}</td>
@@ -36,14 +36,20 @@
           <td>{{ order.total_cost }} ₽</td>
           <td>{{ order.comment }}</td>
           <td>
+            {% if messages %}
+                {% for message in messages %}
+                    {{ message }}
+                {% endfor %}
+            {% else %}
               <p>Может быть приготовлен ресторанами:</p>
               <ul>
-                  {% for restaurant in common_restaurants %}
-                      <li>{{ restaurant.name }}</li>
+                  {% for restaurant in common_restaurants_with_distance %}
+                      <li>{{ restaurant.name }} - {{ restaurant.distance_to_order }} км</li>
                   {% empty %}
                       <li>Нет ресторанов, которые могут приготовить весь заказ</li>
                   {% endfor %}
               </ul>
+            {% endif %}
           </td>
           <td><a href="{% url 'admin:foodcartapp_order_change' object_id=order.id %}?next={{ request.path|urlencode }}">Редактировать</a></td>
       </tr>

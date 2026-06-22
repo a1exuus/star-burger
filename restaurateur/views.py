@@ -3,12 +3,21 @@ from django.shortcuts import redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib import messages
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
-
 from foodcartapp.models import Product, Restaurant, Order
+
+from environs import Env
+from geopy import distance
+import requests
+
+env = Env()
+env.read_env()
+
+YANDEX_API_KEY = env('YANDEX_API_KEY')
 
 
 class Login(forms.Form):
@@ -90,6 +99,24 @@ def view_restaurants(request):
     })
 
 
+def fetch_coordinates(address):
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    response = requests.get(base_url, params={
+        "geocode": address,
+        "apikey": YANDEX_API_KEY,
+        "format": "json",
+    })
+    response.raise_for_status()
+    found_places = response.json()['response']['GeoObjectCollection']['featureMember']
+
+    if not found_places:
+        return None
+
+    most_relevant = found_places[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    return (lat, lon)
+
+
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
     restaurants = list(Restaurant.objects.order_by('name'))
@@ -116,9 +143,42 @@ def view_orders(request):
             items_with_availability.append((item, available_restaurants))
             
             common_restaurants &= set(available_restaurants)
-        
-        orders_with_availability.append((order, items_with_availability, list(common_restaurants)))
+
+        common_restaurants_with_distance = []
+
+
+        try:
+            order_coordinates = fetch_coordinates(order.address)
+        except Exception:
+            messages.error(request, f"Ошибка координат для заказа №{order.id} ({order.address}): {e}")
+            continue
+
+        print(order_coordinates)
+
+        for restaraunt in common_restaurants:
+            try:
+                restaraunt_coordinates = fetch_coordinates(restaraunt.address)
+            except Exception as e:
+                messages.error(request, f"Ошибка координат для ресторана №{restaraunt.id} ({restaraunt.address}): {e}")
+                continue
+
+            print(restaraunt_coordinates)
+
+            if order_coordinates and restaraunt_coordinates:
+                order_distance = distance.distance(restaraunt_coordinates, order_coordinates).km
+                restaraunt.distance_to_order = round(order_distance, 2)
+            else:
+                restaraunt.distance_to_order = None
+
+            common_restaurants_with_distance.append(restaraunt)
+
+        common_restaurants_with_distance.sort(
+            key=lambda r: r.distance_to_order if r.distance_to_order is not None else float('inf')
+        )
+
+        orders_with_availability.append((order, common_restaurants_with_distance))
+
 
     return render(request, template_name='order_items.html', context={
         'order_items': orders_with_availability,
-    })
+    })  
