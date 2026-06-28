@@ -143,19 +143,28 @@ class OrderQuerySet(models.QuerySet):
     
 
     def returns_ready_restaurants(self):
-        menu_items = RestaurantMenuItem.objects.all().select_related('restaurant',
-                                                                     'product')
+        order_ids = self.values_list('id', flat=True)
+        all_order_items = (OrderItem.objects
+                        .filter(order_id__in=order_ids)
+                        .select_related('product', 'order'))
+        
+        items_by_order = defaultdict(list)
+        for item in all_order_items:
+            items_by_order[item.order_id].append(item.product)
+        
+        menu_items = RestaurantMenuItem.objects.all().select_related('restaurant', 'product')
         restaurants_with_products = defaultdict(list)
         for item in menu_items:
             restaurants_with_products[item.restaurant].append(item.product)
+        
         for order in self:
-            order_products = [product.product for product in order.\
-                              order_items.select_related('product')]
+            order_products = items_by_order.get(order.id, [])
             ready_restaurants = []
             for restaurant, r_products in restaurants_with_products.items():
                 if all(elem in r_products for elem in order_products):
                     ready_restaurants.append(restaurant.name)
             order.ready_restaurants = ready_restaurants
+        
         return self
 
 

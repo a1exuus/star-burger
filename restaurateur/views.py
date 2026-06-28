@@ -4,15 +4,19 @@ from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Prefetch
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
 
-from foodcartapp.models import Product, Restaurant, Order
+from foodcartapp.models import Product, Restaurant, Order, OrderItem
+from geocache.models import Location
 
 from environs import Env
 from geopy import distance
 import requests
+import datetime
 
 env = Env()
 env.read_env()
@@ -99,7 +103,7 @@ def view_restaurants(request):
     })
 
 
-def fetch_coordinates(address):
+def fetch_yandex_coordinates(address):
     base_url = "https://geocode-maps.yandex.ru/1.x"
     response = requests.get(base_url, params={
         "geocode": address,
@@ -107,14 +111,50 @@ def fetch_coordinates(address):
         "format": "json",
     })
     response.raise_for_status()
+    
     found_places = response.json()['response']['GeoObjectCollection']['featureMember']
-
     if not found_places:
         return None
 
     most_relevant = found_places[0]
     lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
-    return (lat, lon)
+    return lat, lon
+
+
+def get_cached_or_fresh_coordinates(addresses):
+    if not addresses:
+        return {}
+
+    locations = Location.objects.filter(address__in=addresses)
+    
+    coords_dict = {}
+    outdated_addresses = set()
+    
+    cache_ttl = datetime.timedelta(days=30)
+    now = timezone.now()
+    
+    for loc in locations:
+        if now - loc.queried_at > cache_ttl:
+            outdated_addresses.add(loc.address)
+        else:
+            coords_dict[loc.address] = (str(loc.latitude), str(loc.longitude))
+            
+    missing_addresses = (set(addresses) - set(coords_dict.keys())) | outdated_addresses
+    
+    for address in missing_addresses:
+        try:
+            result = fetch_yandex_coordinates(address)
+            if result:
+                lat, lon = result
+                location, _ = Location.objects.update_or_create(
+                    address=address,
+                    defaults={'latitude': float(lat), 'longitude': float(lon)}
+                )
+                coords_dict[address] = (str(location.latitude), str(location.longitude))
+        except Exception as e:
+            print(f"Ошибка геокодирования адреса {address}: {e}")
+            
+    return coords_dict
 
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
@@ -122,16 +162,36 @@ def view_orders(request):
     restaurants = list(Restaurant.objects.order_by('name'))
     orders = (Order.objects.exclude(status='DLRD')
               .select_related('restaurant')
-              .prefetch_related('order_items__product__menu_items')
               .with_total_cost()
               .returns_ready_restaurants())
+
+    order_ids = [order.id for order in orders]
+    all_items = (OrderItem.objects
+                 .filter(order_id__in=order_ids)
+                 .select_related('product')
+                 .prefetch_related('product__menu_items')
+                 .order_by('order_id', 'quantity'))
+    
+    items_by_order = {}
+    for item in all_items:
+        items_by_order.setdefault(item.order_id, []).append(item)
+
+    all_addresses = set()
+    for order in orders:
+        all_addresses.add(order.address)
+    for restaurant in restaurants:
+        all_addresses.add(restaurant.address)
+
+    coordinates = get_cached_or_fresh_coordinates(all_addresses)
 
     orders_with_availability = []
     for order in orders:
         items_with_availability = []
         common_restaurants = set(restaurants)
         
-        for item in order.order_items.all():
+        order_items_list = items_by_order.get(order.id, [])
+        
+        for item in order_items_list:
             availability = {
                 mi.restaurant_id: mi.availability
                 for mi in item.product.menu_items.all()
@@ -141,36 +201,21 @@ def view_orders(request):
                 if availability.get(restaurant.id, False)
             ]
             items_with_availability.append((item, available_restaurants))
-            
             common_restaurants &= set(available_restaurants)
 
         common_restaurants_with_distance = []
+        order_coordinates = coordinates.get(order.address)
 
+        for restaurant in common_restaurants:
+            restaurant_coordinates = coordinates.get(restaurant.address)
 
-        try:
-            order_coordinates = fetch_coordinates(order.address)
-        except Exception:
-            messages.error(request, f"Ошибка координат для заказа №{order.id} ({order.address}): {e}")
-            continue
-
-        print(order_coordinates)
-
-        for restaraunt in common_restaurants:
-            try:
-                restaraunt_coordinates = fetch_coordinates(restaraunt.address)
-            except Exception as e:
-                messages.error(request, f"Ошибка координат для ресторана №{restaraunt.id} ({restaraunt.address}): {e}")
-                continue
-
-            print(restaraunt_coordinates)
-
-            if order_coordinates and restaraunt_coordinates:
-                order_distance = distance.distance(restaraunt_coordinates, order_coordinates).km
-                restaraunt.distance_to_order = round(order_distance, 2)
+            if order_coordinates and restaurant_coordinates:
+                order_distance = distance.distance(restaurant_coordinates, order_coordinates).km
+                restaurant.distance_to_order = round(order_distance, 2)
             else:
-                restaraunt.distance_to_order = None
+                restaurant.distance_to_order = None
 
-            common_restaurants_with_distance.append(restaraunt)
+            common_restaurants_with_distance.append(restaurant)
 
         common_restaurants_with_distance.sort(
             key=lambda r: r.distance_to_order if r.distance_to_order is not None else float('inf')
@@ -178,7 +223,6 @@ def view_orders(request):
 
         orders_with_availability.append((order, common_restaurants_with_distance))
 
-
     return render(request, template_name='order_items.html', context={
         'order_items': orders_with_availability,
-    })  
+    })
