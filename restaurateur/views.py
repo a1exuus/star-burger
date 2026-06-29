@@ -145,8 +145,11 @@ def view_orders(request):
             items_with_availability.append((item, available_restaurants))
             common_restaurants &= set(available_restaurants)
 
-        common_restaurants_with_distance = []
         order_coordinates = coordinates.get(order.address)
+        address_not_found = order_coordinates is None
+
+        common_restaurants_with_distance = []
+        
 
         for restaurant in common_restaurants:
             restaurant_coordinates = coordinates.get(restaurant.address)
@@ -162,8 +165,8 @@ def view_orders(request):
         common_restaurants_with_distance.sort(
             key=lambda x: x[1] if x[1] is not None else float('inf')
         )
-        
-        orders_with_availability.append((order, common_restaurants_with_distance))
+
+        orders_with_availability.append((order, common_restaurants_with_distance, address_not_found))
 
     return render(request, template_name='order_items.html', context={
         'order_items': orders_with_availability,
