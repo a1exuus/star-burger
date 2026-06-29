@@ -153,16 +153,16 @@ def view_orders(request):
 
             if order_coordinates and restaurant_coordinates:
                 order_distance = distance.distance(restaurant_coordinates, order_coordinates).km
-                restaurant.distance_to_order = round(order_distance, 2)
+                distance_value = round(order_distance, 2)
             else:
-                restaurant.distance_to_order = None
+                distance_value = None
 
-            common_restaurants_with_distance.append(restaurant)
+            common_restaurants_with_distance.append((restaurant, distance_value))
 
         common_restaurants_with_distance.sort(
-            key=lambda r: r.distance_to_order if r.distance_to_order is not None else float('inf')
+            key=lambda x: x[1] if x[1] is not None else float('inf')
         )
-
+        
         orders_with_availability.append((order, common_restaurants_with_distance))
 
     return render(request, template_name='order_items.html', context={

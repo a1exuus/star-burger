@@ -43,11 +43,11 @@
             {% else %}
               <p>Может быть приготовлен ресторанами:</p>
               <ul>
-                  {% for restaurant in common_restaurants_with_distance %}
-                      <li>{{ restaurant.name }} - {{ restaurant.distance_to_order }} км</li>
-                  {% empty %}
-                      <li>Нет ресторанов, которые могут приготовить весь заказ</li>
-                  {% endfor %}
+                {% for restaurant, distance in common_restaurants_with_distance %}
+                  <li>{{ restaurant.name }} - {{ distance }} км</li>
+                {% empty %}
+                  <li>Нет ресторанов, которые могут приготовить весь заказ</li>
+                {% endfor %}
               </ul>
             {% endif %}
           </td>
