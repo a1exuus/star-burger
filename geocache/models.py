@@ -5,7 +5,7 @@ class Location(models.Model):
     latitude = models.FloatField('Широта')
     longitude = models.FloatField('Долгота')
     
-    queried_at = models.DateTimeField('Дата последнего запроса', auto_now=True)
+    updated_at = models.DateTimeField('Дата последнего запроса', auto_now=True)
 
     def __str__(self):
         return self.address

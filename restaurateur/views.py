@@ -129,7 +129,7 @@ def get_cached_or_fresh_coordinates(addresses):
     now = timezone.now()
     
     for loc in locations:
-        if now - loc.queried_at > cache_ttl:
+        if now - loc.updated_at > cache_ttl:
             outdated_addresses.add(loc.address)
         else:
             coords_dict[loc.address] = (str(loc.latitude), str(loc.longitude))
