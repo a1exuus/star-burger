@@ -221,9 +221,8 @@ class Order(models.Model):
         Restaurant,
         related_name='orders',
         verbose_name='Ресторан',
-        blank=True,
         null=True,
-        on_delete=models.CASCADE
+        on_delete=models.SET_NULL
     )
     registrated_at = models.DateTimeField(
         db_index=True,
@@ -261,7 +260,7 @@ class OrderItem(models.Model):
     product = models.ForeignKey(Product,
                                 related_name='order_items',
                                 verbose_name='Продукт',
-                                on_delete=models.CASCADE)
+                                on_delete=models.PROTECT)
     price = models.DecimalField(
         'Цена',
         max_digits=8,
