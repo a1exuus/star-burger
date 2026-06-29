@@ -265,14 +265,19 @@ class OrderItem(models.Model):
         'Цена',
         max_digits=8,
         decimal_places=2,
-        validators=[MinValueValidator(0)],
-        blank=True,
-        null=True
+        validators=[MinValueValidator(0)]
     )
     quantity = models.PositiveIntegerField(
         db_index=True,
         verbose_name='Количество'
         )
+
+
+    def save(self, *args, **kwargs):
+        if not self.price:
+            self.price = self.product.price
+        super().save(*args, **kwargs)
+
 
     class Meta:
         ordering = ['quantity']
