@@ -269,7 +269,8 @@ class OrderItem(models.Model):
     )
     quantity = models.PositiveIntegerField(
         db_index=True,
-        verbose_name='Количество'
+        verbose_name='Количество',
+        validators=[MinValueValidator(1)]
         )
 
 
