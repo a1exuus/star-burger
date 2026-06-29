@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Prefetch
+from django.conf import settings
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth import views as auth_views
@@ -13,15 +14,9 @@ from django.contrib.auth import views as auth_views
 from foodcartapp.models import Product, Restaurant, Order, OrderItem
 from geocache.models import Location
 
-from environs import Env
 from geopy import distance
 import requests
 import datetime
-
-env = Env()
-env.read_env()
-
-YANDEX_API_KEY = env('YANDEX_API_KEY')
 
 
 class Login(forms.Form):
@@ -107,7 +102,7 @@ def fetch_yandex_coordinates(address):
     base_url = "https://geocode-maps.yandex.ru/1.x"
     response = requests.get(base_url, params={
         "geocode": address,
-        "apikey": YANDEX_API_KEY,
+        "apikey": settings.YANDEX_API_KEY,
         "format": "json",
     })
     response.raise_for_status()
