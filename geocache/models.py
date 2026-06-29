@@ -1,7 +1,7 @@
 from django.db import models
 
 class Location(models.Model):
-    address = models.CharField('Адрес', max_length=255, unique=True, db_index=True)
+    address = models.CharField('Адрес', max_length=255, unique=True)
     latitude = models.FloatField('Широта')
     longitude = models.FloatField('Долгота')
     
