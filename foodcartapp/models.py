@@ -192,7 +192,8 @@ class Order(models.Model):
     phonenumber = PhoneNumberField(
         region="RU",
         verbose_name='Номер телефона',
-        max_length=18
+        max_length=18,
+        db_index=True
         )  # type: ignore
     address = models.CharField(
         max_length=70,
@@ -232,12 +233,14 @@ class Order(models.Model):
     called_at = models.DateTimeField(
         blank=True, 
         null=True, 
-        verbose_name='Дата и время звонка'
+        verbose_name='Дата и время звонка',
+        db_index=True
     )
     delivered_at = models.DateTimeField(
         blank=True, 
         null=True, 
-        verbose_name='Дата и время доставки'
+        verbose_name='Дата и время доставки',
+        db_index=True
     )
 
     objects = OrderQuerySet.as_manager()
