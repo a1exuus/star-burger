@@ -21,12 +21,16 @@ from django.shortcuts import render
 
 from . import settings
 
+def test_error(request):
+    raise Exception("Test Rollbar error")
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', render, kwargs={'template_name': 'index.html'}, name='start_page'),
     path('api/', include('foodcartapp.urls')),
     path('api-auth/', include('rest_framework.urls')),
     path('manager/', include('restaurateur.urls')),
+    path('rollbar/test/', test_error),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:

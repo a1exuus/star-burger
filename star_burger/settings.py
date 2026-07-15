@@ -34,7 +34,8 @@ INSTALLED_APPS = [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
+    'https://burgerosso.xyz',
+    'https://www.burgerosso.xyz',
     'http://127.0.0.1:8000',
 ]
 
@@ -47,6 +48,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'rollbar.contrib.django.middleware.RollbarNotifierMiddleware',
 ]
 
 ROOT_URLCONF = 'star_burger.urls'
@@ -131,3 +133,10 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "assets"),
     os.path.join(BASE_DIR, "bundles"),
 ]
+
+ROLLBAR = {
+    'access_token': env('ROLLBAR_ACCESS_TOKEN'),
+    'environment': 'production' if not DEBUG else 'development',
+    'root': BASE_DIR,
+    'code_version': '1.0',
+}
