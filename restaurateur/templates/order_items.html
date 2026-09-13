@@ -14,6 +14,7 @@
    <table class="table table-responsive">
     <tr>
       <th>ID заказа</th>
+      <th>Дата заказа</th>
       <th>Статус</th>
       <th>Способ оплаты</th>
       <th>Клиент</th>
@@ -28,8 +29,9 @@
     {% for order, common_restaurants_with_distance, address_not_found in order_items %}
       <tr>
           <td><a href="{% url 'restaurateur:detailed_order' order.id %}">{{ order.id }}</a></td>
-          <td>{{ order.get_status_display }}</td>
-          <td>{{ order.get_payment_way_display }}</td>
+          <td>{{ order.registrated_at }}</td>
+          <td class="label label-info">{{ order.get_status_display }}</td>
+          <td class="label label-default">{{ order.get_payment_way_display }}</td>
           <td>{{ order.firstname }} {{ order.lastname }}</td>
           <td>{{ order.phonenumber }}</td>
           <td>{{ order.address }}</td>
