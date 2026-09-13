@@ -3,66 +3,105 @@
 {% block title %}Необработанные заказы | Star Burger{% endblock %}
 
 {% block content %}
-  <center>
-    <h2>Необработанные заказы</h2>
-  </center>
+  <style>
+    .orders-page { max-width: 1160px; padding-bottom: 40px; }
+    .orders-page__title { margin: 38px 0 20px; font-weight: 300; }
+    .orders-page__divider { margin: 0 0 38px; }
+    .orders-table { margin-bottom: 0; border-collapse: separate; border-spacing: 0; }
+    .orders-table thead th { border-bottom: 2px solid #ddd; color: #333; font-size: 13px; vertical-align: bottom; }
+    .orders-table > tbody > tr { background: #f8f8f8; transition: background-color .15s ease; }
+    .orders-table > tbody > tr:hover { background: #eef7fc; }
+    .orders-table > tbody > tr > td { border-top: 1px solid #ddd; vertical-align: top; }
+    .orders-table .order-number { font-weight: 600; white-space: nowrap; }
+    .orders-table .order-created { color: #666; min-width: 130px; }
+    .orders-table .order-total { font-weight: 700; white-space: nowrap; }
+    .orders-table .label { display: inline-block; font-size: 11px; padding: .3em .55em; }
+    .orders-table .order-actions { min-width: 108px; }
+    .orders-table .order-actions .btn { margin-bottom: 4px; }
+    .orders-table .order-products { min-width: 105px; }
+    .orders-table .product-list { margin: 8px 0 0; padding-left: 17px; color: #555; }
+    .orders-table .restaurant-list { margin: 8px 0 0; padding-left: 17px; color: #555; }
+    .orders-page__empty { padding: 26px; text-align: center; color: #777; }
+  </style>
 
-  <hr/>
-  <br/>
-  <br/>
-  <div class="container">
-   <table class="table table-responsive">
-    <tr>
-      <th>ID заказа</th>
-      <th>Дата заказа</th>
-      <th>Статус</th>
-      <th>Способ оплаты</th>
-      <th>Клиент</th>
-      <th>Телефон</th>
-      <th>Адрес доставки</th>
-      <th>Сумма заказа</th>
-      <th>Комментарий</th>
-      <th>Рестораны</th>
-      <th>Действия</th>
-    </tr>
+  <div class="container orders-page">
+    <h2 class="text-center orders-page__title">Необработанные заказы</h2>
+    <hr class="orders-page__divider">
 
-    {% for order, common_restaurants_with_distance, address_not_found in order_items %}
-      <tr>
-          <td><a href="{% url 'restaurateur:detailed_order' order.id %}">{{ order.id }}</a></td>
-          <td>{{ order.registrated_at }}</td>
-          <td class="label label-info">{{ order.get_status_display }}</td>
-          <td class="label label-default">{{ order.get_payment_way_display }}</td>
-          <td>{{ order.firstname }} {{ order.lastname }}</td>
-          <td>{{ order.phonenumber }}</td>
-          <td>{{ order.address }}</td>
-          <td>{{ order.total_cost }} ₽</td>
-          <td>{{ order.comment }}</td>
-          <td>
-            {% if address_not_found %}
-                <p style="color: red; font-weight: bold;">Адрес не найден</p>
-            {% elif messages %}
-                {% for message in messages %}
-                    {{ message }}
-                {% endfor %}
-            {% else %}
-              <p>Может быть приготовлен ресторанами:</p>
-              <ul>
-                  {% for restaurant, distance in common_restaurants_with_distance %}
-                      <li>{{ restaurant.name }} - {{ distance }} км</li>
-                  {% empty %}
-                      <li>Нет ресторанов, которые могут приготовить весь заказ</li>
-                  {% endfor %}
-              </ul>
-            {% endif %}
-          </td>
-          <td>
-            <a href="{% url 'restaurateur:detailed_order' order.id %}" class="btn btn-primary btn-xs">Просмотреть</a>
-            <a href="{% url 'admin:foodcartapp_order_change' object_id=order.id %}?next={{ request.path|urlencode }}">Редактировать</a>
-          </td>
-      </tr>
-    {% endfor %}
-
-
-   </table>
+    <div class="table-responsive">
+      <table class="table orders-table">
+        <thead>
+          <tr>
+            <th>ID<br>заказа</th>
+            <th>Создан</th>
+            <th>Статус</th>
+            <th>Клиент</th>
+            <th>Телефон</th>
+            <th>Адрес<br>доставки</th>
+            <th>Комментарий</th>
+            <th>Стоимость<br>заказа</th>
+            <th>Товары</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order, order_products, common_restaurants_with_distance, address_not_found in order_items %}
+            <tr>
+              <td class="order-number"><a href="{% url 'restaurateur:detailed_order' order.id %}">#{{ order.id }}</a></td>
+              <td class="order-created">{{ order.registrated_at|date:"j E Y г." }}<br>{{ order.registrated_at|date:"H:i" }}</td>
+              <td>
+                {% if order.status == 'NPRC' %}
+                  <span class="label label-info">Новый</span>
+                {% elif order.status == 'ACTD' %}
+                  <span class="label label-primary">Принят</span>
+                {% elif order.status == 'PRCD' %}
+                  <span class="label label-warning">Готовится</span>
+                {% else %}
+                  <span class="label label-success">{{ order.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td>{{ order.firstname }}<br>{{ order.lastname }}</td>
+              <td><a href="tel:{{ order.phonenumber }}">{{ order.phonenumber }}</a></td>
+              <td>{{ order.address }}</td>
+              <td>{% if order.comment %}{{ order.comment }}{% else %}&mdash;{% endif %}</td>
+              <td class="order-total">{{ order.total_cost }} руб.</td>
+              <td class="order-products">
+                <a href="#order-products-{{ order.id }}" data-toggle="collapse" aria-expanded="false" aria-controls="order-products-{{ order.id }}">
+                  Посмотреть<br>товары ({{ order_products|length }})
+                </a>
+                <div class="collapse" id="order-products-{{ order.id }}">
+                  <ul class="product-list">
+                    {% for item in order_products %}
+                      <li>{{ item.product.name }} &times; {{ item.quantity }}</li>
+                    {% empty %}
+                      <li>Нет товаров</li>
+                    {% endfor %}
+                  </ul>
+                  {% if address_not_found %}
+                    <p class="text-danger"><strong>Адрес не найден</strong></p>
+                  {% else %}
+                    <ul class="restaurant-list">
+                      {% for restaurant, distance in common_restaurants_with_distance %}
+                        <li>{{ restaurant.name }}{% if distance is not None %} — {{ distance }} км{% endif %}</li>
+                      {% empty %}
+                        <li>Нет подходящего ресторана</li>
+                      {% endfor %}
+                    </ul>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="order-actions">
+                <a href="{% url 'restaurateur:detailed_order' order.id %}" class="btn btn-primary btn-xs">Открыть</a><br>
+                <a href="{% url 'admin:foodcartapp_order_change' object_id=order.id %}?next={{ request.path|urlencode }}" class="btn btn-default btn-xs">Редактировать</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="10" class="orders-page__empty">Необработанных заказов нет.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 {% endblock %}
