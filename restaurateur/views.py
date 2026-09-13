@@ -1,11 +1,11 @@
 from django import forms
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
 from django.utils import timezone
-from django.db.models import Prefetch
+from django.db.models import DecimalField, ExpressionWrapper, F, Prefetch
 from django.conf import settings
 
 from django.contrib.auth import authenticate, login
@@ -166,8 +166,33 @@ def view_orders(request):
             key=lambda x: x[1] if x[1] is not None else float('inf')
         )
 
-        orders_with_availability.append((order, common_restaurants_with_distance, address_not_found))
+        orders_with_availability.append(
+            (order, order_items_list, common_restaurants_with_distance, address_not_found)
+        )
 
     return render(request, template_name='order_items.html', context={
         'order_items': orders_with_availability,
+    })
+
+
+@user_passes_test(is_manager, login_url='restaurateur:login')
+def view_detailed_order(request, order_id):
+    order = get_object_or_404(
+        Order.objects.with_total_cost().select_related('restaurant'),
+        pk=order_id,
+    )
+    order_items = (
+        OrderItem.objects.filter(order=order)
+        .select_related('product')
+        .annotate(
+            total_cost=ExpressionWrapper(
+                F('price') * F('quantity'),
+                output_field=DecimalField(max_digits=10, decimal_places=2),
+            )
+        )
+    )
+
+    return render(request, 'detailed_order.html', {
+        'order': order,
+        'order_items': order_items,
     })
