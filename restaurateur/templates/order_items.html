@@ -27,7 +27,7 @@
 
     {% for order, common_restaurants_with_distance, address_not_found in order_items %}
       <tr>
-          <td>{{ order.id }}</td>
+          <td><a href="{% url 'restaurateur:detailed_order' order.id %}">{{ order.id }}</a></td>
           <td>{{ order.get_status_display }}</td>
           <td>{{ order.get_payment_way_display }}</td>
           <td>{{ order.firstname }} {{ order.lastname }}</td>
