@@ -1,0 +1,60 @@
+{% extends 'base_restaurateur_page.html' %}
+
+{% block title %}Заказ #{{ order.id }} | Star Burger{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="clearfix">
+      <h3 class="pull-left">Заказ #{{ order.id }}</h3>
+      <a href="{% url 'restaurateur:view_orders' %}" class="btn btn-default btn-xs pull-right" style="margin-top: 25px;">
+        <span class="glyphicon glyphicon-arrow-left"></span> Назад к списку заказов
+      </a>
+    </div>
+
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="panel panel-default">
+          <div class="panel-heading">Данные клиента</div>
+          <div class="panel-body">
+            <p>Клиент: {{ order.firstname }} {{ order.lastname }}</p>
+            <p>Телефон: {{ order.phonenumber }}</p>
+            <p>Адрес доставки: {{ order.address }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6">
+        <div class="panel panel-primary">
+          <div class="panel-heading">Итоговая стоимость</div>
+          <div class="panel-body">{{ order.total_cost }} руб.</div>
+        </div>
+      </div>
+    </div>
+
+    <h4>Состав заказа</h4>
+    <table class="table table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th>Товар</th>
+          <th>Количество</th>
+          <th>Цена за ед.</th>
+          <th>Стоимость</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order_item in order_items %}
+          <tr>
+            <td>{{ order_item.product.name }}</td>
+            <td>{{ order_item.quantity }} шт.</td>
+            <td>{{ order_item.price }} руб.</td>
+            <td>{{ order_item.total_cost }} руб.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <a href="{% url 'admin:foodcartapp_order_change' object_id=order.id %}" class="btn btn-primary btn-xs">
+      Редактировать заказ в админке
+    </a>
+  </div>
+{% endblock %}
