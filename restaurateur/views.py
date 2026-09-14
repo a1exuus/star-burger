@@ -183,13 +183,35 @@ def view_detailed_order(request, order_id):
         Order.objects.with_total_cost().select_related('restaurant'),
         pk=order_id,
     )
+    if request.method == 'POST':
+        order_form = OrderForm(request.POST, instance=order)
+        order_item_formset = OrderItemFormSet(
+            request.POST,
+            instance=order,
+        )
+
+        if order_form.is_valid() and order_item_formset.is_valid():
+            with transaction.atomic():
+                order_form.save()
+                order_item_formset.save()
+
+            return redirect(
+                'restaurateur:detailed_order',
+                order_id=order.id,
+            )
+    else:
+        order_form = OrderForm(instance=order)
+        order_item_formset = OrderItemFormSet(instance=order)
     order_items = (
         OrderItem.objects.filter(order=order)
         .select_related('product')
         .annotate(
             total_cost=ExpressionWrapper(
                 F('price') * F('quantity'),
-                output_field=DecimalField(max_digits=10, decimal_places=2),
+                output_field=DecimalField(
+                    max_digits=10,
+                    decimal_places=2,
+                ),
             )
         )
     )
@@ -197,4 +219,6 @@ def view_detailed_order(request, order_id):
     return render(request, 'detailed_order.html', {
         'order': order,
         'order_items': order_items,
+        'order_form': order_form,
+        'order_item_formset': order_item_formset,
     })
